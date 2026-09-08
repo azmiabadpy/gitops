@@ -44,3 +44,8 @@ variable "database_password" {
   type        = string
   sensitive   = true
 }
+
+variable "node_instance_type" {
+  description = "EC2 instance type for EKS managed nodes"
+  type        = string
+}

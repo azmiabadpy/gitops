@@ -21,3 +21,4 @@ private_subnet_cidrs = [
 database_name     = "gitopsdb"
 database_username = "admin"
 database_password = "admin123"
+node_instance_type = "m7i-flex.large"

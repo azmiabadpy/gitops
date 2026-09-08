@@ -81,3 +81,19 @@ module "vpc_endpoints" {
   ]
 }
 
+module "eks" {
+  source = "./modules/eks"
+
+  project_name = var.project_name
+
+  vpc_id = module.vpc.vpc_id
+
+  private_subnet_ids = module.vpc.private_subnet_ids
+
+  eks_cluster_role_arn = module.iam.eks_cluster_role_arn
+
+  eks_node_role_arn = module.iam.eks_node_role_arn
+
+  node_instance_type = var.node_instance_type
+}
+
