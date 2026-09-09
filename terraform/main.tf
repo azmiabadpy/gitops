@@ -39,21 +39,21 @@ module "security_groups" {
   vpc_id       = module.vpc.vpc_id
 }
 
-module "rds" {
+#module "rds" {
 
-  source = "./modules/rds"
+  #source = "./modules/rds"
 
-  project_name = var.project_name
+  #project_name = var.project_name
 
-  private_subnet_ids = module.vpc.private_subnet_ids
+  #private_subnet_ids = module.vpc.private_subnet_ids
 
-  database_name     = var.database_name
-  database_username = var.database_username
-  database_password = var.database_password
+  #database_name     = var.database_name
+  #database_username = var.database_username
+  #database_password = var.database_password
 
 
-  rds_security_group_id = module.security_groups.rds_security_group_id
-}
+  #rds_security_group_id = module.security_groups.rds_security_group_id
+#}
 
 module "ecr" {
   source = "./modules/ecr"
@@ -81,19 +81,19 @@ module "vpc_endpoints" {
   ]
 }
 
-module "eks" {
-  source = "./modules/eks"
+# module "eks" {
+#   source = "./modules/eks"
 
-  project_name = var.project_name
+#   project_name = var.project_name
 
-  vpc_id = module.vpc.vpc_id
+#   vpc_id = module.vpc.vpc_id
 
-  private_subnet_ids = module.vpc.private_subnet_ids
+#   private_subnet_ids = module.vpc.private_subnet_ids
 
-  eks_cluster_role_arn = module.iam.eks_cluster_role_arn
+#   eks_cluster_role_arn = module.iam.eks_cluster_role_arn
 
-  eks_node_role_arn = module.iam.eks_node_role_arn
+#   eks_node_role_arn = module.iam.eks_node_role_arn
 
-  node_instance_type = var.node_instance_type
-}
+#   node_instance_type = var.node_instance_type
+# }
 
