@@ -61,11 +61,11 @@ module "ecr" {
   project_name = var.project_name
 }
 
-module "iam" {
-  source = "./modules/iam"
+# module "iam" {
+#   source = "./modules/iam"
 
-  project_name = var.project_name
-}
+#   project_name = var.project_name
+# }
 
 module "vpc_endpoints" {
   source = "./modules/vpc-endpoints"
