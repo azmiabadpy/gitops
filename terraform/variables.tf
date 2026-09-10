@@ -28,22 +28,22 @@ variable "private_subnet_cidrs" {
   type        = list(string)
 }
 
-variable "database_name" {
-  description = "MySQL database name"
-  type        = string
-}
+# variable "database_name" {
+#   description = "MySQL database name"
+#   type        = string
+# }
 
-variable "database_username" {
-  description = "MySQL username"
-  type        = string
-  sensitive   = true
-}
+# variable "database_username" {
+#   description = "MySQL username"
+#   type        = string
+#   sensitive   = true
+# }
 
-variable "database_password" {
-  description = "MySQL password"
-  type        = string
-  sensitive   = true
-}
+# variable "database_password" {
+#   description = "MySQL password"
+#   type        = string
+#   sensitive   = true
+# }
 
 variable "node_instance_type" {
   description = "EC2 instance type for EKS managed nodes"
