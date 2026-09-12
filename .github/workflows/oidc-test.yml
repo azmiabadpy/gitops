@@ -9,31 +9,28 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: ap-south-1
+  FRONTEND_REPOSITORY: gitops-frontend
+  BACKEND_REPOSITORY: gitops-backend
+
 jobs:
-
-  checkout:
-    name: Checkout
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
 
   oidc:
     name: OIDC Authentication
     runs-on: ubuntu-latest
-    needs: checkout
 
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
+
 
 
   terraform:
@@ -49,7 +46,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -71,17 +68,69 @@ jobs:
         run: terraform apply -auto-approve
 
 
-  ecr-login:
-    name: ECR Login
+  
+  build-and-push:
+    name: Build and Push Images
     runs-on: ubuntu-latest
     needs: terraform
 
     steps:
+      # This job gets a new VM,
+      # therefore checkout is required again.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Frontend Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG \
+            ./application/frontend
+
+      - name: Push Frontend Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push \
+            $ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG
+
+      - name: Build Backend Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG \
+            ./application/backend
+
+      - name: Push Backend Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push \
+            $ECR_REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG
+
+      - name: Show Published Images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "Frontend Image:"
+          echo "$ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG"
+
+          echo "Backend Image:"
+          echo "$ECR_REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG"
