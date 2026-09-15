@@ -3,9 +3,9 @@ output "db_instance_id" {
   value       = aws_db_instance.mysql.id
 }
 
-output "db_endpoint" {
-  description = "RDS MySQL endpoint"
-  value       = aws_db_instance.mysql.endpoint
+output "db_host" {
+  description = "RDS MySQL hostname"
+  value       = aws_db_instance.mysql.address
 }
 
 output "db_port" {

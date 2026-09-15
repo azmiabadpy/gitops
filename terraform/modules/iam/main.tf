@@ -22,10 +22,15 @@ resource "aws_iam_role" "eks_cluster" {
   }
 }
 
+
+# EKS Cluster Policy
 resource "aws_iam_role_policy_attachment" "eks_cluster" {
   role       = aws_iam_role.eks_cluster.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
+
+
+# EKS NODE ROLE
 
 
 resource "aws_iam_role" "eks_node" {
@@ -52,12 +57,23 @@ resource "aws_iam_role" "eks_node" {
   }
 }
 
+
+# Allows worker nodes to communicate with EKS
 resource "aws_iam_role_policy_attachment" "eks_node_worker" {
   role       = aws_iam_role.eks_node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
+
+# Allows worker nodes to pull Docker images from ECR
 resource "aws_iam_role_policy_attachment" "eks_node_ecr" {
   role       = aws_iam_role.eks_node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
+}
+
+
+# Allows AWS VPC CNI to manage pod networking / ENIs / IP addresses
+resource "aws_iam_role_policy_attachment" "eks_node_cni" {
+  role       = aws_iam_role.eks_node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }

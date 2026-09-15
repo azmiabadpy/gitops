@@ -1,4 +1,3 @@
-
 resource "aws_vpc" "this" {
   cidr_block = var.vpc_cidr
 
@@ -10,6 +9,11 @@ resource "aws_vpc" "this" {
   }
 }
 
+
+
+# INTERNET GATEWAY
+
+
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
 
@@ -17,6 +21,10 @@ resource "aws_internet_gateway" "this" {
     Name = "${var.project_name}-igw"
   }
 }
+
+
+
+# PUBLIC SUBNETS
 
 
 resource "aws_subnet" "public" {
@@ -28,11 +36,15 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-public-${count.index + 1}"
+    Name                     = "${var.project_name}-public-${count.index + 1}"
+    "kubernetes.io/role/elb" = "1"
   }
 }
 
-# Private Subnets
+
+
+# PRIVATE SUBNETS
+
 
 resource "aws_subnet" "private" {
   count = length(var.private_subnet_cidrs)
@@ -42,12 +54,14 @@ resource "aws_subnet" "private" {
   availability_zone = var.availability_zones[count.index]
 
   tags = {
-    Name = "${var.project_name}-private-${count.index + 1}"
+    Name                              = "${var.project_name}-private-${count.index + 1}"
+    "kubernetes.io/role/internal-elb" = "1"
   }
 }
 
 
-# Public Route Table
+# PUBLIC ROUTE TABLE
+
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
@@ -58,17 +72,11 @@ resource "aws_route_table" "public" {
 }
 
 
-
-# Public Internet Route Association
-
-
 resource "aws_route" "public_internet" {
   route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.this.id
 }
-
-
 
 
 resource "aws_route_table_association" "public" {
@@ -79,6 +87,37 @@ resource "aws_route_table_association" "public" {
 }
 
 
+# NAT GATEWAY
+
+
+# Public IPv4 address used by the NAT Gateway
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.project_name}-nat-eip"
+  }
+}
+
+
+# One NAT Gateway in the first public subnet
+resource "aws_nat_gateway" "this" {
+  allocation_id = aws_eip.nat.id
+
+  subnet_id = aws_subnet.public[0].id
+
+  depends_on = [
+    aws_internet_gateway.this
+  ]
+
+  tags = {
+    Name = "${var.project_name}-nat"
+  }
+}
+
+
+
+# PRIVATE ROUTE TABLE
 
 
 resource "aws_route_table" "private" {
@@ -90,6 +129,13 @@ resource "aws_route_table" "private" {
 }
 
 
+# Private subnet outbound traffic goes through NAT Gateway
+resource "aws_route" "private_nat" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+
+  nat_gateway_id = aws_nat_gateway.this.id
+}
 
 
 resource "aws_route_table_association" "private" {

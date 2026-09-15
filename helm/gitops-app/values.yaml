@@ -1,0 +1,176 @@
+# FRONTEND
+
+frontend:
+  replicaCount: 1
+
+  image:
+    # GitHub Actions will replace this using Terraform output
+    repository: "REPLACE_FRONTEND_ECR_REPOSITORY"
+
+    # GitHub commit SHA will be used as image tag
+    tag: "REPLACE_IMAGE_TAG"
+
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+
+  resources: {}
+
+
+# BACKEND
+
+
+backend:
+  replicaCount: 1
+
+  image:
+    # GitHub Actions will replace this using Terraform output
+    repository: "REPLACE_BACKEND_ECR_REPOSITORY"
+
+    # GitHub commit SHA will be used as image tag
+    tag: "REPLACE_IMAGE_TAG"
+
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+
+  resources: {}
+
+
+
+# IMAGE PULL
+
+
+imagePullSecrets: []
+database:
+  host: ""
+  port: "3306"
+  name: ""
+  user: ""
+  password: ""
+
+
+
+# HELM NAMES
+
+
+nameOverride: ""
+
+fullnameOverride: ""
+
+
+
+# SERVICE ACCOUNT
+
+# Frontend/backend currently do not need Kubernetes API access.
+
+serviceAccount:
+  create: false
+  automount: false
+  annotations: {}
+  name: ""
+
+
+
+# POD CONFIGURATION
+
+
+podAnnotations: {}
+
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+
+# INGRESS
+
+# We will configure this later for AWS Load Balancer Controller.
+
+ingress:
+  enabled: true
+
+  className: alb
+
+  annotations: 
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+
+  hosts: []
+
+  tls: []
+
+
+
+# HTTP ROUTE / GATEWAY API
+
+# Not used because we plan to use AWS ALB Ingress.
+
+httpRoute:
+  enabled: false
+
+  annotations: {}
+
+  parentRefs: []
+
+  hostnames: []
+
+  rules: []
+
+
+
+# AUTOSCALING
+
+
+autoscaling:
+  enabled: false
+
+  minReplicas: 1
+
+  maxReplicas: 3
+
+  targetCPUUtilizationPercentage: 80
+
+
+# VOLUMES
+
+
+volumes: []
+
+volumeMounts: []
+
+# POD SCHEDULING
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
