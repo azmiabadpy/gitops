@@ -3,6 +3,7 @@ name: GitOps CI
 on:
   push:
     branches:
+      - main
       - gitops/helm
 
   workflow_dispatch:
@@ -17,8 +18,6 @@ env:
   BACKEND_REPOSITORY: gitops-backend
   TF_IN_AUTOMATION: true
 
-# Prevent multiple Terraform runs from modifying
-# the same remote state at the same time.
 concurrency:
   group: gitops-terraform
   cancel-in-progress: false
@@ -26,14 +25,46 @@ concurrency:
 
 jobs:
 
-  # STAGE 1 - VERIFY AWS OIDC AUTHENTICATION
-
+  # ============================================================
+  # STAGE 1 - VERIFY GITHUB OIDC + AWS AUTHENTICATION
+  # ============================================================
 
   oidc:
     name: Stage 1 - Verify AWS OIDC
     runs-on: ubuntu-latest
 
     steps:
+
+      - name: Show GitHub OIDC Claims
+        shell: bash
+        run: |
+          TOKEN_RESPONSE=$(curl -sSf \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$TOKEN_RESPONSE" | python3 -c \
+            'import sys,json; print(json.load(sys.stdin)["value"])')
+
+          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f2)
+
+          python3 - "$PAYLOAD" <<'PY'
+          import sys
+          import json
+          import base64
+
+          payload = sys.argv[1]
+          payload += "=" * (-len(payload) % 4)
+
+          claims = json.loads(
+              base64.urlsafe_b64decode(payload.encode()).decode()
+          )
+
+          print("OIDC sub:", claims.get("sub"))
+          print("OIDC aud:", claims.get("aud"))
+          print("Repository:", claims.get("repository"))
+          print("Ref:", claims.get("ref"))
+          PY
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -44,9 +75,9 @@ jobs:
         run: aws sts get-caller-identity
 
 
-
+  # ============================================================
   # STAGE 2 - TERRAFORM VALIDATION
-
+  # ============================================================
 
   terraform-validate:
     name: Stage 2 - Terraform Validate
@@ -54,6 +85,7 @@ jobs:
     needs: oidc
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -79,9 +111,9 @@ jobs:
         run: terraform validate
 
 
-  
+  # ============================================================
   # STAGE 3 - TERRAFORM PLAN AND APPLY
-
+  # ============================================================
 
   terraform-deploy:
     name: Stage 3 - Terraform Deploy
@@ -93,6 +125,7 @@ jobs:
       TF_VAR_database_password: ${{ secrets.DB_PASSWORD }}
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -118,9 +151,9 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
 
-
-  # STAGE 4A - BUILD AND PUSH FRONTEND
-
+  # ============================================================
+  # STAGE 4A - BUILD AND PUSH FRONTEND IMAGE
+  # ============================================================
 
   build-frontend:
     name: Stage 4A - Build Frontend
@@ -131,6 +164,7 @@ jobs:
       image: ${{ steps.image-info.outputs.image }}
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -170,9 +204,9 @@ jobs:
           echo "image=$ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
 
-
-  # STAGE 4B - BUILD AND PUSH BACKEND
-
+  # ============================================================
+  # STAGE 4B - BUILD AND PUSH BACKEND IMAGE
+  # ============================================================
 
   build-backend:
     name: Stage 4B - Build Backend
@@ -183,6 +217,7 @@ jobs:
       image: ${{ steps.image-info.outputs.image }}
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -222,9 +257,9 @@ jobs:
           echo "image=$ECR_REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
 
-
+  # ============================================================
   # STAGE 5 - PIPELINE SUMMARY
-
+  # ============================================================
 
   summary:
     name: Stage 5 - Pipeline Summary
@@ -235,17 +270,21 @@ jobs:
       - build-backend
 
     steps:
+
       - name: Show Published Images
         run: |
           echo "=========================================="
           echo "GitOps CI Pipeline Completed Successfully"
           echo "=========================================="
+
           echo ""
           echo "Frontend Image:"
           echo "${{ needs.build-frontend.outputs.image }}"
+
           echo ""
           echo "Backend Image:"
           echo "${{ needs.build-backend.outputs.image }}"
+
           echo ""
           echo "Git Commit:"
           echo "${{ github.sha }}"
