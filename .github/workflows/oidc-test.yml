@@ -3,7 +3,7 @@ name: GitOps CI
 on:
   push:
     branches:
-      - main
+      - gitops/helm
 
   workflow_dispatch:
 
